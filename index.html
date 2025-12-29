@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>APKアイコン制作 - PWA安定版</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#764ba2">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            height: 100vh;
+            height: 100dvh; 
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            /* ブラウザの「引っ張って更新」や「戻る」を無効化 */
+            overscroll-behavior: none;
+        }
+        
+        /* --- ヘッダー --- */
+        .header {
+            flex: 0 0 auto;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 10;
+        }
+        
+        .header h1 {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .header-upload-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.4);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        #fileInput { display: none; }
+
+        /* --- メインコンテンツ --- */
+        .main-content {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 20px;
+        }
+        
+        /* プレビューエリア */
+        .preview-section {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 0 0 auto;
+        }
+
+        .image-preview-container {
+            width: 100%;
+            max-width: 240px;
+            aspect-ratio: 1/1;
+            position: relative;
+        }
+        
+        .image-preview {
+            width: 100%;
+            height: 100%;
+            background: #eef1f5;
+            border: 2px dashed #cbd5e0;
+            touch-action: none; 
+            user-select: none;
+            cursor: grab;
+            margin: 0 auto;
+            overflow: hidden;
+        }
+
+        .image-preview:active {
+            cursor: grabbing;
+        }
+        
+        #cropCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        .instruction-text {
+            font-size: 10px;
+            color: #888;
+            text-align: center;
+            margin-bottom: 4px;
+            height: 14px;
+        }
+
+        /* --- コントロールエリア --- */
+        .controls-section {
+            width: 100%;
+            max-width: 360px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-bottom: 10px;
+            opacity: 0.5;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .control-panel {
+            background: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            border: 1px solid #eef1f5;
+        }
+
+        .zoom-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .zoom-slider-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .zoom-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #555;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+
+        .reset-btn {
+            font-family: inherit;
+            font-size: 10px;
+            color: #d32f2f;
+            background: #fff0f0;
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #ffcccc;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .setting-item {
+            background: #f8f9fa;
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 1px solid #eee;
+        }
+
+        .control-label {
+            font-size: 10px; 
+            font-weight: 700; 
+            display: block; 
+            margin-bottom: 2px;
+            color: #444;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 24px;
+            cursor: pointer;
+            touch-action: none;
+            margin: 0;
+            display: block;
+        }
+        
+        input[type="color"] {
+            width: 100%;
+            height: 28px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        /* --- フッター --- */
+        .footer {
+            flex: 0 0 auto;
+            background: white;
+            padding: 10px 12px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            z-index: 100;
+            padding-bottom: max(20px, env(safe-area-inset-bottom)); 
+        }
+        
+        .download-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .download-btn {
+            padding: 12px; 
+            font-size: 12px;
+            font-weight: 700;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+        }
+        
+        .btn-192 { background: #2e7d32; }
+        .btn-512 { background: #ef6c00; }
+        .btn-all {
+            background: #3f51b5;
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>APKアイコン制作</h1>
+        <div class="header-upload-btn" onclick="document.getElementById('fileInput').click()">
+            ＋ 画像選択
+        </div>
+    </div>
+    <input type="file" id="fileInput" accept="image/*">
+
+    <div class="main-content">
+        <div class="preview-section">
+            <p class="instruction-text" id="mainInstruction">画像を選択してください</p>
+            <div class="image-preview-container">
+                <div class="image-preview" id="canvasWrapper">
+                    <canvas id="cropCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls-section" id="controlsSection">
+            <div class="control-panel zoom-row">
+                <div class="zoom-slider-container">
+                    <div class="zoom-label">
+                        <span>ズーム</span>
+                        <span id="zoomDisplay">100%</span>
+                    </div>
+                    <input type="range" id="zoomSlider" min="10" max="500" value="100">
+                </div>
+                <button type="button" class="reset-btn" onclick="resetImage()">リセット</button>
+            </div>
+
+            <div class="settings-grid">
+                <div class="setting-item">
+                    <label class="control-label">背景色</label>
+                    <input type="color" id="bgColor" value="#ffffff">
+                </div>
+                <div class="setting-item">
+                    <label class="control-label">角丸 (0で最大)</label>
+                    <input type="range" id="cornerRadius" min="0" max="50" value="0">
+                </div>
+            </div>
+
+            <div class="settings-grid">
+                <div class="setting-item">
+                    <label class="control-label">枠線の色</label>
+                    <input type="color" id="borderColor" value="#333333">
+                </div>
+                <div class="setting-item">
+                    <label class="control-label">枠線の太さ</label>
+                    <input type="range" id="borderWidth" min="0" max="60" value="0">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="download-grid">
+            <button type="button" class="download-btn btn-192" onclick="downloadIcon(192)">192px 保存</button>
+            <button type="button" class="download-btn btn-512" onclick="downloadIcon(512)">512px 保存</button>
+            <button type="button" class="download-btn btn-all" onclick="downloadAll()">まとめて保存</button>
+        </div>
+    </div>
+
+    <script>
+        let uploadedImg = null;
+        let offsetX = 0; 
+        let offsetY = 0; 
+        let isDragging = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        const canvas = document.getElementById('cropCanvas');
+        const ctx = canvas.getContext('2d');
+        const fileInput = document.getElementById('fileInput');
+        const controlsSection = document.getElementById('controlsSection');
+        const mainInstruction = document.getElementById('mainInstruction');
+        const canvasWrapper = document.getElementById('canvasWrapper');
+        
+        const zoomSlider = document.getElementById('zoomSlider');
+        const zoomDisplay = document.getElementById('zoomDisplay');
+        const cornerRadius = document.getElementById('cornerRadius');
+        const bgColor = document.getElementById('bgColor');
+        const borderWidth = document.getElementById('borderWidth');
+        const borderColor = document.getElementById('borderColor');
+
+        // 初期描画
+        window.addEventListener('DOMContentLoaded', () => {
+            canvas.width = 600;
+            canvas.height = 600;
+            render(canvas, 600);
+        });
+
+        // サービスワーカーの登録
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW registered:', reg.scope))
+                    .catch(err => console.error('SW registration failed:', err));
+            });
+        }
+
+        // タッチ＆マウス操作
+        function handleStart(clientX, clientY) {
+            if (!uploadedImg) return;
+            isDragging = true;
+            lastX = clientX;
+            lastY = clientY;
+        }
+
+        function handleMove(clientX, clientY) {
+            if (!isDragging || !uploadedImg) return;
+            const rect = canvas.getBoundingClientRect();
+            const scale = 600 / rect.width;
+            offsetX += (clientX - lastX) * scale;
+            offsetY += (clientY - lastY) * scale;
+            lastX = clientX;
+            lastY = clientY;
+            render(canvas, 600);
+        }
+
+        function handleEnd() { isDragging = false; }
+
+        canvasWrapper.addEventListener('touchstart', (e) => {
+            handleStart(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+
+        canvasWrapper.addEventListener('touchmove', (e) => {
+            if (e.cancelable) e.preventDefault(); 
+            handleMove(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: false });
+
+        canvasWrapper.addEventListener('touchend', handleEnd);
+        canvasWrapper.addEventListener('mousedown', (e) => handleStart(e.clientX, e.clientY));
+        window.addEventListener('mousemove', (e) => {
+            if (isDragging) handleMove(e.clientX, e.clientY);
+        });
+        window.addEventListener('mouseup', handleEnd);
+
+        // 画像読み込み
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    uploadedImg = img;
+                    controlsSection.style.opacity = '1';
+                    controlsSection.style.pointerEvents = 'auto';
+                    mainInstruction.textContent = '移動：スワイプ / 拡大：スライダー';
+                    canvasWrapper.style.border = '1px solid #ccc';
+                    offsetX = 0; offsetY = 0;
+                    zoomSlider.value = 100;
+                    render(canvas, 600);
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function drawRoundedPath(c, size, r) {
+            c.beginPath();
+            if (r === 0) {
+                c.rect(0, 0, size, size);
+            } else {
+                c.moveTo(r, 0);
+                c.lineTo(size - r, 0);
+                c.arcTo(size, 0, size, r, r);
+                c.lineTo(size, size - r);
+                c.arcTo(size, size, size - r, size, r);
+                c.lineTo(r, size);
+                c.arcTo(0, size, 0, size - r, r);
+                c.lineTo(0, r);
+                c.arcTo(0, 0, r, 0, r);
+                c.closePath();
+            }
+        }
+
+        function render(targetCanvas, size) {
+            const c = targetCanvas.getContext('2d');
+            const rVal = parseInt(cornerRadius.value);
+            const radius = (size * rVal) / 100;
+            const bg = bgColor.value;
+            const bWidthVal = parseInt(borderWidth.value);
+            const bColor = borderColor.value;
+            const zoom = parseInt(zoomSlider.value);
+            const sRatio = size / 600;
+
+            c.clearRect(0, 0, size, size);
+            
+            c.save();
+            drawRoundedPath(c, size, radius);
+            c.clip();
+
+            c.fillStyle = bg;
+            c.fill();
+
+            if (uploadedImg) {
+                if(targetCanvas === canvas) zoomDisplay.textContent = zoom + '%';
+                const baseScale = Math.max(600 / uploadedImg.width, 600 / uploadedImg.height);
+                const currentScale = baseScale * (zoom / 100) * sRatio;
+                const drawW = uploadedImg.width * currentScale;
+                const drawH = uploadedImg.height * currentScale;
+                const x = (size - drawW) / 2 + (offsetX * sRatio);
+                const y = (size - drawH) / 2 + (offsetY * sRatio);
+                
+                c.imageSmoothingEnabled = true;
+                c.imageSmoothingQuality = 'high';
+                c.drawImage(uploadedImg, x, y, drawW, drawH);
+            }
+            
+            if (bWidthVal > 0) {
+                drawRoundedPath(c, size, radius);
+                c.lineWidth = bWidthVal * sRatio * 2; 
+                c.strokeStyle = bColor;
+                c.stroke();
+            }
+            c.restore();
+        }
+
+        [zoomSlider, cornerRadius, bgColor, borderWidth, borderColor].forEach(el => {
+            el.addEventListener('input', () => render(canvas, 600));
+        });
+
+        function resetImage() {
+            uploadedImg = null;
+            controlsSection.style.opacity = '0.5';
+            controlsSection.style.pointerEvents = 'none';
+            mainInstruction.textContent = '画像を選択してください';
+            canvasWrapper.style.border = '2px dashed #cbd5e0';
+            fileInput.value = '';
+            render(canvas, 600);
+        }
+
+        function getTimestamp() {
+            const now = new Date();
+            const f = n => String(n).padStart(2, '0');
+            return `${now.getFullYear()}${f(now.getMonth()+1)}${f(now.getDate())}_${f(now.getHours())}${f(now.getMinutes())}${f(now.getSeconds())}`;
+        }
+
+        function downloadIcon(size) {
+            const hCanvas = document.createElement('canvas');
+            hCanvas.width = size; hCanvas.height = size;
+            render(hCanvas, size);
+            
+            hCanvas.toBlob((blob) => {
+                if (!blob) return;
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.download = `icon-${size}_${getTimestamp()}.png`;
+                a.href = url;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }, 'image/png');
+        }
+
+        function downloadAll() {
+            downloadIcon(192);
+            setTimeout(() => downloadIcon(512), 1000);
+        }
+    </script>
+</body>
+</html>
