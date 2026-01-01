@@ -1,5 +1,5 @@
 // 更新時はこのバージョンを変更してください
-const CACHE_NAME = 'app-v1';
+const CACHE_NAME = 'app-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
